@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.json());
+executablePath: puppeteer.executablePath()
 
 app.post('/post-to-linkedin', async (req, res) => {
   const postText = req.body.text;
@@ -20,9 +21,11 @@ app.post('/post-to-linkedin', async (req, res) => {
 
   try {
     const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    headless: true,
+    executablePath: puppeteer.executablePath(),  // ✅ Get path to installed Chrome
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
+
 
     const page = await browser.newPage();
 
