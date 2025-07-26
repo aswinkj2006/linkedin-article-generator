@@ -1,5 +1,11 @@
-const chromium = require('chrome-aws-lambda');
-const puppeteer = require('puppeteer-core');
+const isServerless = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.RENDER;
+let puppeteer, chromium;
+if (isServerless) {
+  chromium = require('chrome-aws-lambda');
+  puppeteer = require('puppeteer-core');
+} else {
+  puppeteer = require('puppeteer');
+}
 const fs = require('fs');
 const path = require('path');
 
@@ -13,14 +19,21 @@ if (!postText) {
 const cookiesPath = path.resolve('./cookies.json');
 
 
+
 (async () => {
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath,
-    headless: chromium.headless,
-    ignoreHTTPSErrors: true
-  });
+  const launchOptions = isServerless
+    ? {
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath,
+        headless: chromium.headless,
+        ignoreHTTPSErrors: true
+      }
+    : {
+        headless: false,
+        args: ['--start-maximized']
+      };
+  const browser = await puppeteer.launch(launchOptions);
 
   const page = await browser.newPage();
 
@@ -33,11 +46,23 @@ const cookiesPath = path.resolve('./cookies.json');
     console.warn('⚠️ No cookies found! Login may be required.');
   }
 
+
   // 🌐 Go to LinkedIn Feed
   await page.goto('https://www.linkedin.com/feed/', {
     waitUntil: 'domcontentloaded',
     timeout: 0
   });
+
+  // Handle LinkedIn "Welcome Back" page if shown
+  try {
+    await page.waitForSelector('button[aria-label*="Asween Mass Boy"]', { timeout: 5000 });
+    await page.click('button[aria-label*="Asween Mass Boy"]');
+    console.log('✅ Clicked user profile on Welcome Back page');
+    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 });
+  } catch (e) {
+    // If not found, continue as normal
+    console.log('ℹ️ Welcome Back page not shown, continuing...');
+  }
 
   console.log('⏳ Waiting for feed to load...');
   await page.waitForTimeout(5000);
