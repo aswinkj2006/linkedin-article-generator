@@ -1,7 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const chromium = require('chrome-aws-lambda');
+const puppeteer = require('puppeteer-core');
 const fs = require('fs');
-const puppeteer = require('puppeteer');
 const path = require('path');
 require('dotenv').config();
 
@@ -18,11 +19,11 @@ app.post('/post-to-linkedin', async (req, res) => {
   const cookiesPath = path.resolve('./cookies.json');
 
   try {
-    // ✅ Launch with correct path (auto handles download)
     const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: puppeteer.executablePath(),  // auto-locates the downloaded Chrome
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
