@@ -16,7 +16,7 @@
     "formidable": "^3.5.4",
     "fs": "^0.0.1-security",
     "path": "^0.12.7",
-    "puppeteer-core": "21.3.8"
+    "puppeteer-core": "10.1.0"
   },
   "description": ""
 }
