@@ -1,18 +1,16 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
 const fs = require('fs');
+const puppeteer = require('puppeteer');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.json());
-executablePath: puppeteer.executablePath()
 
 app.post('/post-to-linkedin', async (req, res) => {
   const postText = req.body.text;
   const apiKey = req.headers['x-api-key'];
-
   if (apiKey !== process.env.API_KEY) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
@@ -20,12 +18,12 @@ app.post('/post-to-linkedin', async (req, res) => {
   const cookiesPath = path.resolve('./cookies.json');
 
   try {
+    // ✅ Launch with correct path (auto handles download)
     const browser = await puppeteer.launch({
-    headless: true,
-    executablePath: puppeteer.executablePath(),  // ✅ Get path to installed Chrome
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+      headless: true,
+      executablePath: puppeteer.executablePath(),  // auto-locates the downloaded Chrome
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
-
 
     const page = await browser.newPage();
 
@@ -34,7 +32,7 @@ app.post('/post-to-linkedin', async (req, res) => {
       await page.setCookie(...cookies);
     }
 
-    await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: 0 });
+    await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(5000);
 
     const [startPostBtn] = await page.$x("//button[contains(., 'Start a post')]");
