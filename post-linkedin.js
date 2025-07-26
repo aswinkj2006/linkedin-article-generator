@@ -15,7 +15,8 @@ const cookiesPath = path.resolve('./cookies.json');
   const browser = await puppeteer.launch({
     headless: false,
     defaultViewport: null,
-    args: ['--start-maximized']
+    executablePath: '/usr/bin/chromium',
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized']
   });
 
   const page = await browser.newPage();
