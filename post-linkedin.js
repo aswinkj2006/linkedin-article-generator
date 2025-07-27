@@ -67,14 +67,29 @@ const cookiesPath = path.resolve('./cookies.json');
   console.log('⏳ Waiting for feed to load...');
   await page.waitForTimeout(5000);
 
-  // 📝 Click "Start a post"
-  const [startPostBtn] = await page.$x("//button[contains(., 'Start a post')]");
-  if (!startPostBtn) {
-    console.error('❌ Start a post button not found!');
+
+  // Debug: Output current URL and a snippet of HTML
+  const currentUrl = page.url();
+  const pageContent = await page.content();
+  console.log('� Current URL:', currentUrl);
+  console.log('🔎 Page HTML snippet:', pageContent.substring(0, 1000));
+
+  // �📝 Try multiple selectors for "Start a post"
+  let startPostBtn = await page.$x("//button[contains(., 'Start a post')]");
+  if (!startPostBtn || !startPostBtn[0]) {
+    // Try alternative selectors
+    startPostBtn = await page.$x("//button[contains(@aria-label, 'Start a post')]");
+  }
+  if (!startPostBtn || !startPostBtn[0]) {
+    startPostBtn = await page.$('button.share-box-feed-entry__trigger');
+    if (startPostBtn) startPostBtn = [startPostBtn];
+  }
+  if (!startPostBtn || !startPostBtn[0]) {
+    console.error('❌ Start post button not found!');
     await browser.close();
     return;
   }
-  await startPostBtn.click();
+  await startPostBtn[0].click();
   console.log('✅ Clicked Start a post');
   await page.waitForTimeout(3000);
 
