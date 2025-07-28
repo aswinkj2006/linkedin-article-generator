@@ -53,11 +53,20 @@ app.post('/post-to-linkedin', async (req, res) => {
     console.log('⏳ Waiting for feed to load...');
     await page.waitForTimeout(5000);
 
-    // Debug: Output current URL and a snippet of HTML
+
+    // Debug: Output current URL, save full HTML, and take a screenshot
     const currentUrl = page.url();
     const pageContent = await page.content();
     console.log('🔎 Current URL:', currentUrl);
     console.log('🔎 Page HTML snippet:', pageContent.substring(0, 1000));
+    try {
+      fs.writeFileSync('linkedin_feed_debug.html', pageContent);
+      await page.screenshot({ path: 'linkedin_feed_debug.png', fullPage: true });
+      console.log('🖼️ Saved HTML and screenshot for debugging.');
+    } catch (e) {
+      console.warn('⚠️ Could not save HTML/screenshot:', e.message);
+    }
+
 
     // Try multiple selectors for "Start a post"
     let startPostBtn = await page.$x("//button[contains(., 'Start a post')]");
@@ -67,6 +76,19 @@ app.post('/post-to-linkedin', async (req, res) => {
     if (!startPostBtn || !startPostBtn[0]) {
       startPostBtn = await page.$('button.share-box-feed-entry__trigger');
       if (startPostBtn) startPostBtn = [startPostBtn];
+    }
+    // Try even more generic selectors
+    if (!startPostBtn || !startPostBtn[0]) {
+      startPostBtn = await page.$$('button');
+      if (startPostBtn && startPostBtn.length > 0) {
+        for (const btn of startPostBtn) {
+          const text = await (await btn.getProperty('innerText')).jsonValue();
+          if (text && text.toLowerCase().includes('start a post')) {
+            startPostBtn = [btn];
+            break;
+          }
+        }
+      }
     }
     if (!startPostBtn || !startPostBtn[0]) {
       throw new Error('Start post button not found!');
