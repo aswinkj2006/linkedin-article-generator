@@ -70,8 +70,6 @@ app.post('/post-to-linkedin', async (req, res) => {
     }
     if (!startPostBtn || !startPostBtn[0]) {
       console.error('❌ Start post button not found!');
-      // Log the HTML snippet for debugging
-      console.log('� Full HTML snippet:', pageContent.substring(0, 2000));
       await browser.close();
       return res.status(500).json({ error: 'Start post button not found!' });
     }
@@ -94,8 +92,6 @@ app.post('/post-to-linkedin', async (req, res) => {
       console.log('🚀 Post submitted!');
     } else {
       console.error('❌ Could not find the Post button!');
-      await browser.close();
-      return res.status(500).json({ error: 'Post button not found!' });
     }
 
     // 🧼 Wait and save updated cookies
