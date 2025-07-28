@@ -77,13 +77,25 @@ app.post('/post-to-linkedin', async (req, res) => {
     console.log('✅ Clicked Start a post');
     await page.waitForTimeout(3000);
 
-    // ✍️ Type post content
+
+    // ✍️ Instantly paste post content
     const editor = await page.waitForSelector('div[role="textbox"]', { timeout: 10000 });
     await editor.click();
-    await page.keyboard.type(postText, { delay: 20 });
-    console.log('✍️ Typed post content');
+    await page.evaluate((text) => {
+      const el = document.activeElement;
+      el.innerText = text;
+    }, postText);
+    console.log('✍️ Instantly pasted post content');
 
-    await page.waitForTimeout(2000);
+    // Wait until the text appears in the editor before posting
+    await page.waitForFunction(
+      (text) => {
+        const el = document.activeElement;
+        return el && el.innerText && el.innerText.trim() === text.trim();
+      },
+      { timeout: 10000 },
+      postText
+    );
 
     // 🚀 Click Post button
     const postButton = await page.$('button.share-actions__primary-action');
