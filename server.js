@@ -1,13 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const isServerless = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.RENDER;
-let puppeteer, chromium;
-if (isServerless) {
-  chromium = require('chrome-aws-lambda');
-  puppeteer = require('puppeteer-core');
-} else {
-  puppeteer = require('puppeteer');
-}
+const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -26,19 +19,10 @@ app.post('/post-to-linkedin', async (req, res) => {
   const cookiesPath = path.resolve('./cookies.json');
 
   try {
-    const launchOptions = isServerless
-      ? {
-          args: chromium.args,
-          defaultViewport: chromium.defaultViewport,
-          executablePath: await chromium.executablePath,
-          headless: chromium.headless,
-          ignoreHTTPSErrors: true
-        }
-      : {
-          headless: false,
-          args: ['--start-maximized']
-        };
-    const browser = await puppeteer.launch(launchOptions);
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
     const page = await browser.newPage();
 
     if (fs.existsSync(cookiesPath)) {
