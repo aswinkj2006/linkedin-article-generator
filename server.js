@@ -1,6 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
+const app = express();
+app.use(bodyParser.json());
 app.post('/post-to-linkedin', async (req, res) => {
   const postText = req.body.text;
   const apiKey = req.headers['x-api-key'];
