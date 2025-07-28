@@ -1,6 +1,13 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
+const isServerless = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.RENDER;
+let puppeteer, chromium;
+if (isServerless) {
+  chromium = require('chrome-aws-lambda');
+  puppeteer = require('puppeteer-core');
+} else {
+  puppeteer = require('puppeteer');
+}
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -19,37 +26,93 @@ app.post('/post-to-linkedin', async (req, res) => {
   const cookiesPath = path.resolve('./cookies.json');
 
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
+    const launchOptions = isServerless
+      ? {
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath,
+          headless: chromium.headless,
+          ignoreHTTPSErrors: true
+        }
+      : {
+          headless: false,
+          args: ['--start-maximized']
+        };
+    const browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
     if (fs.existsSync(cookiesPath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
       await page.setCookie(...cookies);
+      console.log('✅ Cookies loaded');
+    } else {
+      console.warn('⚠️ No cookies found! Login may be required.');
     }
 
-    await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: 0 });
+    // Go to LinkedIn Feed
+    await page.goto('https://www.linkedin.com/feed/', {
+      waitUntil: 'domcontentloaded',
+      timeout: 0
+    });
+
+    // Handle LinkedIn "Welcome Back" page if shown
+    try {
+      await page.waitForSelector('button[aria-label*="Asween Mass Boy"]', { timeout: 5000 });
+      await page.click('button[aria-label*="Asween Mass Boy"]');
+      console.log('✅ Clicked user profile on Welcome Back page');
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 10000 });
+    } catch (e) {
+      // If not found, continue as normal
+      console.log('ℹ️ Welcome Back page not shown, continuing...');
+    }
+
+    console.log('⏳ Waiting for feed to load...');
     await page.waitForTimeout(5000);
 
-    const [startPostBtn] = await page.$x("//button[contains(., 'Start a post')]");
-    if (!startPostBtn) throw new Error('Start post button not found.');
-    await startPostBtn.click();
+    // Debug: Output current URL and a snippet of HTML
+    const currentUrl = page.url();
+    const pageContent = await page.content();
+    console.log('🔎 Current URL:', currentUrl);
+    console.log('🔎 Page HTML snippet:', pageContent.substring(0, 1000));
+
+    // Try multiple selectors for "Start a post"
+    let startPostBtn = await page.$x("//button[contains(., 'Start a post')]");
+    if (!startPostBtn || !startPostBtn[0]) {
+      startPostBtn = await page.$x("//button[contains(@aria-label, 'Start a post')]");
+    }
+    if (!startPostBtn || !startPostBtn[0]) {
+      startPostBtn = await page.$('button.share-box-feed-entry__trigger');
+      if (startPostBtn) startPostBtn = [startPostBtn];
+    }
+    if (!startPostBtn || !startPostBtn[0]) {
+      throw new Error('Start post button not found!');
+    }
+    await startPostBtn[0].click();
+    console.log('✅ Clicked Start a post');
     await page.waitForTimeout(3000);
 
+    // Type post content
     const editor = await page.waitForSelector('div[role="textbox"]', { timeout: 10000 });
     await editor.click();
     await page.keyboard.type(postText, { delay: 20 });
+    console.log('✍️ Typed post content');
 
+    await page.waitForTimeout(2000);
+
+    // Click Post button
     const postButton = await page.$('button.share-actions__primary-action');
-    if (!postButton) throw new Error('Post button not found.');
-    await postButton.click();
+    if (postButton) {
+      await postButton.click();
+      console.log('🚀 Post submitted!');
+    } else {
+      throw new Error('Post button not found!');
+    }
 
+    // Wait and save updated cookies
     await page.waitForTimeout(5000);
     const updatedCookies = await page.cookies();
     fs.writeFileSync(cookiesPath, JSON.stringify(updatedCookies, null, 2));
+    console.log('💾 Cookies updated');
 
     await browser.close();
     res.status(200).json({ message: '✅ LinkedIn post successful!' });
