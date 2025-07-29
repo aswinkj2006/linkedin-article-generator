@@ -50,7 +50,7 @@ app.post('/post-to-linkedin', async (req, res) => {
     }
 
     console.log('⏳ Waiting for feed to load...');
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(8000);
 
     // Debug: Output current URL and a snippet of HTML
     const currentUrl = page.url();
@@ -85,7 +85,7 @@ app.post('/post-to-linkedin', async (req, res) => {
       const el = document.activeElement;
       el.innerText = text;
     }, postText);
-    console.log('✍️ Instantly pasted post content');
+    console.log('✍️ Pasted post content');
 
     // Wait until the text appears in the editor before posting
     await page.waitForFunction(
